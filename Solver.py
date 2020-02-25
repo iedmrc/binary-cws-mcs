@@ -41,7 +41,7 @@ class Solver:
         n = len(M)
 
         for i in range(1, n):
-            for j in range(1, n):
+            for j in range(1, i):
                 if i != j:
                     S_ij = M[0][i] + M[0][j] - M[i][j]
                     S += [[i, j, S_ij]]
@@ -82,7 +82,7 @@ class Solver:
                 location_j = [idx, -1]
 
         # If neither i nor j assigned to a route in route_list
-        if not len(set(s[0:2]) & set(list(itertools.chain.from_iterable(route_list)))):
+        if not len(set(s[0:2]) & set(itertools.chain.from_iterable(route_list))):
             # then initiate a new route with i,j
             if self.check_capacity([], s[0:2]):
                 route_list.append(s[0:2].tolist())
@@ -143,6 +143,18 @@ class Solver:
                 # then append i to that route
                 route_list[location_j[0]].append(s[0].tolist())
 
+    def spread_missing_nodes(self, route_list):
+        all_nodes = set(self.problem.get_nodes())
+        current_nodes = set(itertools.chain.from_iterable(route_list))
+
+        missing_nodes = all_nodes - current_nodes
+        missing_nodes.remove(0)
+
+        # If there are missing nodes
+        if len(missing_nodes):
+            # then add them without checking capacity
+            route_list.append(list(missing_nodes))
+
 
     def cost(self, route_list):
         cost = 0
@@ -164,5 +176,7 @@ class Solver:
                 if 5 < rnd % 100 < 40:
                     self.process(self.S[i], route_list)
                     pivot_list.remove(i)
+
+        self.spread_missing_nodes(route_list)
         
         return self.cost(route_list), route_list
