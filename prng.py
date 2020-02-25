@@ -1,7 +1,5 @@
-import json
 import sys
 
-import requests
 import gmpy2
 
 LEHMER_0 = 0

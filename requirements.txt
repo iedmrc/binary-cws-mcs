@@ -1,0 +1,4 @@
+gmpy2
+tsplib95
+networkx
+numpy
