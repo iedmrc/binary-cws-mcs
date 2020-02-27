@@ -1,5 +1,6 @@
 import os
 import itertools
+from threading import Thread
 
 import tsplib95
 import networkx as nx
@@ -165,18 +166,60 @@ class Solver:
         return cost
 
 
-    def binary_cws(self, k=0):
-        route_list = []
-        pivot_list = list(range(k, len(self.S)))
-        rnd = None
+    def binary_cws(self, k=0, route_list=[], savings=np.array([]), rnd=None):
+        savings = savings if len(savings) else self.S
+        pivot_list = list(range(k, len(savings)))
 
         while len(pivot_list) > 0:
             for i in pivot_list:
                 rnd = next(prng(1, self.prng_type, rnd))[0]
                 if 5 < rnd % 100 < 40:
-                    self.process(self.S[i], route_list)
+                    self.process(savings[i], route_list)
                     pivot_list.remove(i)
 
         self.spread_missing_nodes(route_list)
-        
+
         return self.cost(route_list), route_list
+    
+
+    def binary_cws_mcs(self):
+        route_list = []
+        savings = self.S
+        n = 10
+        
+        import concurrent.futures
+        import concurrent
+
+        while len(savings) > 0:
+            for s in range(len(savings)):
+                t1, t2 = [], []
+                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                    
+                    t1_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[s:], rnd=seeder[0]) for seeder in prng(n)]
+                    t2_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[s+1:], rnd=seeder[0]) for seeder in prng(n)]
+                    
+                    for t1_future in concurrent.futures.as_completed(t1_futures):
+                        t1.append(t1_future.result()[0])
+                    
+                    for t2_future in concurrent.futures.as_completed(t2_futures):
+                        t2.append(t2_future.result()[0])
+                print(savings, s)
+                print(sum(t2)/n, sum(t1)/n )
+                print("---------")
+                if sum(t2)/n > sum(t1)/n:
+                    self.process(savings[s], route_list)
+                    savings = np.delete(savings, s, 0)
+  
+        
+        return self.cost(route_list), route_list 
+
+                
+                
+
+                
+                
+                
+                # I wanted to run simulations in parallel but
+                # I had to feed last generated random number as
+                #  seeder, back to prng.
+    

@@ -3,7 +3,7 @@ import os
 from prng import LEHMER_0, LEHMER_2, LEHMER_5, ICG, MIXED_CG
 from Solver import Solver
 
-generators = [LEHMER_0, LEHMER_2, LEHMER_5, ICG, MIXED_CG]
+generators = [LEHMER_0]
 
 def main():
     vrp_set_path = './Vrp-Set-E'
@@ -11,7 +11,8 @@ def main():
 
     for generator in generators:
         solver = Solver(problem_path, generator)
-        cost, route_list = solver.binary_cws()
+        # solver.binary_cws_mcs()
+        cost, route_list = solver.binary_cws_mcs()
         print("cost: ",cost)
         print("route: ", route_list)
         print("------------------------------")
