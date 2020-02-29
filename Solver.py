@@ -1,6 +1,9 @@
 import os
 import itertools
 from threading import Thread
+import concurrent
+import concurrent.futures
+import copy
 
 import tsplib95
 import networkx as nx
@@ -167,20 +170,21 @@ class Solver:
 
 
     def binary_cws(self, k=0, route_list=[], savings=np.array([]), rnd=None):
-        route_l=route_list.copy()
         savings = savings if len(savings) else self.S
         pivot_list = list(range(k, len(savings)))
+        route_list = copy.deepcopy(route_list)
+
         while len(pivot_list) > 0:
-            dublicated_pivot_list = pivot_list.copy()
-            for i in dublicated_pivot_list:
+            pivot_list_helper = pivot_list.copy()
+            for i in pivot_list_helper:
                 rnd = next(prng(1, self.prng_type, rnd))[0]
                 if 5 < rnd % 100 < 40:
-                    self.process(savings[i], route_l)
+                    self.process(savings[i], route_list)
                     pivot_list.remove(i)
 
-        self.spread_missing_nodes(route_l)
+        self.spread_missing_nodes(route_list)
 
-        return self.cost(route_l), route_l
+        return self.cost(route_list), route_list
     
 
     def binary_cws_mcs(self):
@@ -188,42 +192,38 @@ class Solver:
         savings = self.S
         n = 3
         print(savings)
-        import concurrent.futures
-        import concurrent
 
         while len(savings) > 0:
-            dublicated_savings=savings.copy()
-            for s in range(len(dublicated_savings)):
+            savings_helper = savings.copy()
+            for s in range(len(savings_helper)):
                 t1, t2 = [], []
-                print("for:",s,dublicated_savings[s],route_list)
+                print("for:",s,savings_helper[s],route_list)
                 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-                    t1_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=dublicated_savings[s:], rnd=seeder[0]) for seeder in prng(n)]
-                    t2_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=dublicated_savings[s+1:], rnd=seeder[0]) for seeder in prng(n)]
-                    print("with:",s,dublicated_savings[s],route_list)
+                    t1_futures, t2_futures = [], []
+
+                    # I replaced list comprehension with a conventional for loop
+                    # in order to save one more "n" loops here.
+                    for seeder in prng(n):
+                        t1_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings_helper[s:], rnd=seeder[0])
+                        t1_futures.append(t1_executor)
+
+                        t2_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings_helper[s+1:], rnd=seeder[0])
+                        t2_futures.append(t2_executor)
+
+                    # print("with:",s,savings_helper[s],route_list)
                     for t1_future in concurrent.futures.as_completed(t1_futures):
                         t1.append(t1_future.result()[0])
                     
                     for t2_future in concurrent.futures.as_completed(t2_futures):
                         t2.append(t2_future.result()[0])
-                print(s,dublicated_savings[s],route_list)
-                print(sum(t2)/n, sum(t1)/n )
-                print("---------")
-                if sum(t2)/n > sum(t1)/n:
-                    self.process(dublicated_savings[s], route_list)
-                    print(s,dublicated_savings[s],route_list)
-                    savings = np.delete(savings, s, 0)
 
-  
+                print("after with:",s,savings_helper[s],route_list)
+                print(sum(t2)/n, sum(t1)/n )
+                
+                if sum(t2)/n > sum(t1)/n:
+                    self.process(savings_helper[s], route_list)
+                    print(s,savings_helper[s],route_list)
+                    savings = np.delete(savings, s, 0)
+                print("---------")
         
         return self.cost(route_list), route_list 
-
-                
-                
-
-                
-                
-                
-                # I wanted to run simulations in parallel but
-                # I had to feed last generated random number as
-                #  seeder, back to prng.
-    
