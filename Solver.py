@@ -59,7 +59,7 @@ class Solver:
                 new_route = route + new_jobs.tolist()
         else:
             new_route = route + new_jobs
-
+            
         for job in new_route:
             capacity += self.DEMANDS[job]
             if capacity > self.CAPACITY:
@@ -167,48 +167,52 @@ class Solver:
 
 
     def binary_cws(self, k=0, route_list=[], savings=np.array([]), rnd=None):
+        route_l=route_list.copy()
         savings = savings if len(savings) else self.S
         pivot_list = list(range(k, len(savings)))
-
         while len(pivot_list) > 0:
-            for i in pivot_list:
+            dublicated_pivot_list = pivot_list.copy()
+            for i in dublicated_pivot_list:
                 rnd = next(prng(1, self.prng_type, rnd))[0]
                 if 5 < rnd % 100 < 40:
-                    self.process(savings[i], route_list)
+                    self.process(savings[i], route_l)
                     pivot_list.remove(i)
 
-        self.spread_missing_nodes(route_list)
+        self.spread_missing_nodes(route_l)
 
-        return self.cost(route_list), route_list
+        return self.cost(route_l), route_l
     
 
     def binary_cws_mcs(self):
         route_list = []
         savings = self.S
-        n = 10
-        
+        n = 3
+        print(savings)
         import concurrent.futures
         import concurrent
 
         while len(savings) > 0:
-            for s in range(len(savings)):
+            dublicated_savings=savings.copy()
+            for s in range(len(dublicated_savings)):
                 t1, t2 = [], []
+                print("for:",s,dublicated_savings[s],route_list)
                 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-                    
-                    t1_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[s:], rnd=seeder[0]) for seeder in prng(n)]
-                    t2_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[s+1:], rnd=seeder[0]) for seeder in prng(n)]
-                    
+                    t1_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=dublicated_savings[s:], rnd=seeder[0]) for seeder in prng(n)]
+                    t2_futures = [executor.submit(self.binary_cws, k=0, route_list=route_list, savings=dublicated_savings[s+1:], rnd=seeder[0]) for seeder in prng(n)]
+                    print("with:",s,dublicated_savings[s],route_list)
                     for t1_future in concurrent.futures.as_completed(t1_futures):
                         t1.append(t1_future.result()[0])
                     
                     for t2_future in concurrent.futures.as_completed(t2_futures):
                         t2.append(t2_future.result()[0])
-                print(savings, s)
+                print(s,dublicated_savings[s],route_list)
                 print(sum(t2)/n, sum(t1)/n )
                 print("---------")
                 if sum(t2)/n > sum(t1)/n:
-                    self.process(savings[s], route_list)
+                    self.process(dublicated_savings[s], route_list)
+                    print(s,dublicated_savings[s],route_list)
                     savings = np.delete(savings, s, 0)
+
   
         
         return self.cost(route_list), route_list 
