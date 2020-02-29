@@ -174,11 +174,14 @@ class Solver:
         pivot_list = list(range(k, len(savings)))
         route_list = copy.deepcopy(route_list)
 
+        rnd = next(prng(1, self.prng_type, rnd))[0]
+        probability = rnd % 40
+
         while len(pivot_list) > 0:
             pivot_list_helper = pivot_list.copy()
             for i in pivot_list_helper:
                 rnd = next(prng(1, self.prng_type, rnd))[0]
-                if 5 < rnd % 100 < 40:
+                if rnd % 100 < probability:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
 
@@ -192,11 +195,13 @@ class Solver:
         savings = self.S.copy()
         
         pivot_list = list(range(len(savings)))
-        n = 3
+        n = 10
 
         while len(pivot_list) > 0:
             pivot_list_helper = pivot_list.copy()
             for i in pivot_list_helper:
+                print("for:",i,savings[i],route_list)
+
                 t1, t2 = [], []
                 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
                     t1_futures, t2_futures = [], []
@@ -217,14 +222,19 @@ class Solver:
                     for t2_future in concurrent.futures.as_completed(t2_futures):
                         t2.append(t2_future.result()[0])
 
-                # print(pivot_list, i)
+                #print(pivot_list, i)
+                #print("after with:",i,savings[i],route_list)
                 print(sum(t2)/n, sum(t1)/n )
                 
                 if sum(t2)/n >= sum(t1)/n:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
                     print(pivot_list, i)
+                    print("if:",i,savings[i],route_list)
 
                 print("---------")
+
+        self.spread_missing_nodes(route_list)
+
         
         return self.cost(route_list), route_list 
