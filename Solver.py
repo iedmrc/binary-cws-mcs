@@ -189,25 +189,25 @@ class Solver:
 
     def binary_cws_mcs(self):
         route_list = []
-        savings = self.S
+        savings = self.S.copy()
+        
+        pivot_list = list(range(len(savings)))
         n = 3
-        print(savings)
 
-        while len(savings) > 0:
-            savings_helper = savings.copy()
-            for s in range(len(savings_helper)):
+        while len(pivot_list) > 0:
+            pivot_list_helper = pivot_list.copy()
+            for i in pivot_list_helper:
                 t1, t2 = [], []
-                print("for:",s,savings_helper[s],route_list)
                 with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
                     t1_futures, t2_futures = [], []
 
                     # I replaced list comprehension with a conventional for loop
                     # in order to save one more "n" loops here.
                     for seeder in prng(n):
-                        t1_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings_helper[s:], rnd=seeder[0])
+                        t1_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[i:], rnd=seeder[0])
                         t1_futures.append(t1_executor)
 
-                        t2_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings_helper[s+1:], rnd=seeder[0])
+                        t2_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[i+1:], rnd=seeder[0])
                         t2_futures.append(t2_executor)
 
                     # print("with:",s,savings_helper[s],route_list)
@@ -217,13 +217,14 @@ class Solver:
                     for t2_future in concurrent.futures.as_completed(t2_futures):
                         t2.append(t2_future.result()[0])
 
-                print("after with:",s,savings_helper[s],route_list)
+                # print(pivot_list, i)
                 print(sum(t2)/n, sum(t1)/n )
                 
-                if sum(t2)/n > sum(t1)/n:
-                    self.process(savings_helper[s], route_list)
-                    print(s,savings_helper[s],route_list)
-                    savings = np.delete(savings, s, 0)
+                if sum(t2)/n >= sum(t1)/n:
+                    self.process(savings[i], route_list)
+                    pivot_list.remove(i)
+                    print(pivot_list, i)
+
                 print("---------")
         
         return self.cost(route_list), route_list 
