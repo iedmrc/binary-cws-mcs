@@ -1,16 +1,13 @@
 import os
 import itertools
-from threading import Thread
-import concurrent
-import concurrent.futures
 import copy
+
 
 import tsplib95
 import networkx as nx
 import numpy as np
 
 from prng import prng, LEHMER_0
-
 
 class Solver:
     def __init__(self, problem_path, prng_type=LEHMER_0):
@@ -169,20 +166,22 @@ class Solver:
     def construct_pivot_list(self, savings):
         return list(range(len(savings)))
 
-    def binary_cws(self, route_list=[], savings=np.array([]), rnd=None):
+    def fork(self, data):
+        return copy.deepcopy(data)
+
+    def binary_cws(self, route_list=[], savings=np.array([]), rnd=None, probability=40):
         savings = savings if len(savings) else self.S
         pivot_list = self.construct_pivot_list(savings)
-        route_list = copy.deepcopy(route_list)
-
-        rnd = next(prng(1, self.prng_type, rnd))[0]
-        probability = rnd % 40
+        route_list = self.fork(route_list)
+        #print("probability",probability)
 
         while len(pivot_list) > 0:
-            pivot_list_helper = pivot_list.copy()
+            pivot_list_helper = self.fork(pivot_list)
+
             for i in pivot_list_helper:
                 rnd = next(prng(1, self.prng_type, rnd))[0]
+
                 if rnd % 100 < probability:
-                    print(i)
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
 
@@ -190,30 +189,43 @@ class Solver:
 
         return self.cost(route_list), route_list
 
-    def binary_cws_mcs(self, n=100):
+
+    def binary_cws_mcs(self, n=1000):
         route_list = []
-        savings = self.S.copy()
+        savings = self.fork(self.S)
 
         pivot_list = self.construct_pivot_list(savings)
-
+        rnd = None
+        import time
+        now = time.time()
         while len(pivot_list) > 0:
-            pivot_list_helper = pivot_list.copy()
-            for i in pivot_list_helper:
-                print(i)
-                t1, t2 = [], []
-                for seeder in prng(n):
-                    current_step = self.binary_cws(
-                        route_list=route_list, savings=savings[i:], rnd=seeder[0])
-                    t1.append(current_step[0])
 
-                    next_step = self.binary_cws(
-                        route_list=route_list, savings=savings[i+1:], rnd=seeder[0])
-                    t2.append(next_step[0])
-                print(sum(t2)/n ,sum(t1)/n)
+            pivot_list_helper = self.fork(pivot_list)
+            for i in pivot_list_helper:
+                #print("for:",i,savings[i],route_list)
+
+                t1, t2 = [], []
+                for _ in range(n):
+                    rnd = next(prng(1, self.prng_type, rnd))[0]
+                    probability = (rnd % 36) + 5
+
+                    t1_step = self.binary_cws(
+                        route_list=route_list, savings=savings[i:], rnd=rnd, probability=probability)
+                    t1.append(t1_step[0])
+
+                    t2_step = self.binary_cws(
+                        route_list=route_list, savings=savings[i+1:], rnd=rnd, probability=probability)
+                    t2.append(t2_step[0])
+    
+                #print(pivot_list, i)
+
+                #print(sum(t2)/n, sum(t1)/n )
                 if sum(t2)/n >= sum(t1)/n:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
+                    #print(pivot_list, i)
+                    #print("if:",i,savings[i],route_list)
 
         self.spread_missing_nodes(route_list)
-
+        print(time.time()-now)
         return self.cost(route_list), route_list
