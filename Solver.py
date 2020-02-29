@@ -11,6 +11,7 @@ import numpy as np
 
 from prng import prng, LEHMER_0
 
+
 class Solver:
     def __init__(self, problem_path, prng_type=LEHMER_0):
         # Problem instance
@@ -32,7 +33,7 @@ class Solver:
         self.DEMANDS = [v for k, v in self.problem.demands.items()]
 
         # The saving list
-        S = self.get_saving_list(self.M)
+        S = self.get_savings_list(self.M)
 
         # Sorted saving list
         self.S = S[(-S[:, 2]).argsort()]
@@ -40,7 +41,7 @@ class Solver:
         # Random number generator type
         self.prng_type = prng_type
 
-    def get_saving_list(self, M):
+    def get_savings_list(self, M):
         S = []
         n = len(M)
 
@@ -52,7 +53,6 @@ class Solver:
 
         return np.array(S, dtype='int')
 
-
     def check_capacity(self, route, new_jobs):
         capacity = 0
         if type(new_jobs).__module__ == np.__name__:
@@ -62,14 +62,13 @@ class Solver:
                 new_route = route + new_jobs.tolist()
         else:
             new_route = route + new_jobs
-            
+
         for job in new_route:
             capacity += self.DEMANDS[job]
             if capacity > self.CAPACITY:
                 return False
-        
-        return True
 
+        return True
 
     def process(self, s, route_list):
         location_i, location_j = [], []
@@ -124,7 +123,7 @@ class Solver:
         elif len(location_i) != 0 and s[1] not in list(itertools.chain.from_iterable(route_list)):
             if not self.check_capacity(route_list[location_i[0]], s[1]):
                 return
-            
+
             # If i exists at the beginning of a route
             if location_i[1] == 0:
                 # then prepend j to that route
@@ -137,7 +136,7 @@ class Solver:
         elif len(location_j) != 0 and s[0] not in list(itertools.chain.from_iterable(route_list)):
             if not self.check_capacity(route_list[location_j[0]], s[0]):
                 return
-            
+
             # If j exists at the beginning of a route
             if location_j[1] == 0:
                 # then prepend i to that route
@@ -159,7 +158,6 @@ class Solver:
             # then add them without checking capacity
             route_list.append(list(missing_nodes))
 
-
     def cost(self, route_list):
         cost = 0
         for route in route_list:
@@ -168,10 +166,12 @@ class Solver:
                 cost += self.M[route[i]][route[i+1]]
         return cost
 
+    def construct_pivot_list(self, savings):
+        return list(range(len(savings)))
 
-    def binary_cws(self, k=0, route_list=[], savings=np.array([]), rnd=None):
+    def binary_cws(self, route_list=[], savings=np.array([]), rnd=None):
         savings = savings if len(savings) else self.S
-        pivot_list = list(range(k, len(savings)))
+        pivot_list = self.construct_pivot_list(savings)
         route_list = copy.deepcopy(route_list)
 
         rnd = next(prng(1, self.prng_type, rnd))[0]
@@ -182,59 +182,38 @@ class Solver:
             for i in pivot_list_helper:
                 rnd = next(prng(1, self.prng_type, rnd))[0]
                 if rnd % 100 < probability:
+                    print(i)
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
 
         self.spread_missing_nodes(route_list)
 
         return self.cost(route_list), route_list
-    
 
-    def binary_cws_mcs(self):
+    def binary_cws_mcs(self, n=100):
         route_list = []
         savings = self.S.copy()
-        
-        pivot_list = list(range(len(savings)))
-        n = 10
+
+        pivot_list = self.construct_pivot_list(savings)
 
         while len(pivot_list) > 0:
             pivot_list_helper = pivot_list.copy()
             for i in pivot_list_helper:
-                print("for:",i,savings[i],route_list)
-
+                print(i)
                 t1, t2 = [], []
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
-                    t1_futures, t2_futures = [], []
+                for seeder in prng(n):
+                    current_step = self.binary_cws(
+                        route_list=route_list, savings=savings[i:], rnd=seeder[0])
+                    t1.append(current_step[0])
 
-                    # I replaced list comprehension with a conventional for loop
-                    # in order to save one more "n" loops here.
-                    for seeder in prng(n):
-                        t1_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[i:], rnd=seeder[0])
-                        t1_futures.append(t1_executor)
-
-                        t2_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[i+1:], rnd=seeder[0])
-                        t2_futures.append(t2_executor)
-
-                    # print("with:",s,savings_helper[s],route_list)
-                    for t1_future in concurrent.futures.as_completed(t1_futures):
-                        t1.append(t1_future.result()[0])
-                    
-                    for t2_future in concurrent.futures.as_completed(t2_futures):
-                        t2.append(t2_future.result()[0])
-
-                #print(pivot_list, i)
-                #print("after with:",i,savings[i],route_list)
-                print(sum(t2)/n, sum(t1)/n )
-                
+                    next_step = self.binary_cws(
+                        route_list=route_list, savings=savings[i+1:], rnd=seeder[0])
+                    t2.append(next_step[0])
+                print(sum(t2)/n ,sum(t1)/n)
                 if sum(t2)/n >= sum(t1)/n:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
-                    print(pivot_list, i)
-                    print("if:",i,savings[i],route_list)
-
-                print("---------")
 
         self.spread_missing_nodes(route_list)
 
-        
-        return self.cost(route_list), route_list 
+        return self.cost(route_list), route_list
