@@ -169,13 +169,11 @@ class Solver:
         return cost
 
 
-    def binary_cws(self, k=0, route_list=[], savings=np.array([]), rnd=None):
+    def binary_cws(self, route_list=[], savings=np.array([]), rnd=None, probability=40):
         savings = savings if len(savings) else self.S
-        pivot_list = list(range(k, len(savings)))
+        pivot_list = list(range(len(savings)))
         route_list = copy.deepcopy(route_list)
-
-        rnd = next(prng(1, self.prng_type, rnd))[0]
-        probability = rnd % 40
+        #print("probability",probability)
 
         while len(pivot_list) > 0:
             pivot_list_helper = pivot_list.copy()
@@ -195,26 +193,33 @@ class Solver:
         savings = self.S.copy()
         
         pivot_list = list(range(len(savings)))
-        n = 10
+        n = 1000
+        rnd = None
 
         while len(pivot_list) > 0:
             pivot_list_helper = pivot_list.copy()
             for i in pivot_list_helper:
-                print("for:",i,savings[i],route_list)
+                #print("for:",i,savings[i],route_list)
 
                 t1, t2 = [], []
-                with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+                with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
                     t1_futures, t2_futures = [], []
 
                     # I replaced list comprehension with a conventional for loop
                     # in order to save one more "n" loops here.
-                    for seeder in prng(n):
-                        t1_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[i:], rnd=seeder[0])
+                    for s in range(n):
+
+                        rnd = next(prng(1, self.prng_type, rnd))[0]
+                        probability = (rnd % 36) + 5
+                        #print("probability",probability)
+
+                        t1_executor = executor.submit(self.binary_cws, route_list=route_list, savings=savings[i:], rnd=rnd, probability=probability)
                         t1_futures.append(t1_executor)
 
-                        t2_executor = executor.submit(self.binary_cws, k=0, route_list=route_list, savings=savings[i+1:], rnd=seeder[0])
+                        t2_executor = executor.submit(self.binary_cws, route_list=route_list, savings=savings[i+1:], rnd=rnd, probability=probability)
                         t2_futures.append(t2_executor)
 
+                    #print("rnd",rnd)
                     # print("with:",s,savings_helper[s],route_list)
                     for t1_future in concurrent.futures.as_completed(t1_futures):
                         t1.append(t1_future.result()[0])
@@ -224,15 +229,15 @@ class Solver:
 
                 #print(pivot_list, i)
                 #print("after with:",i,savings[i],route_list)
-                print(sum(t2)/n, sum(t1)/n )
+                #print(sum(t2)/n, sum(t1)/n )
                 
                 if sum(t2)/n >= sum(t1)/n:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
-                    print(pivot_list, i)
-                    print("if:",i,savings[i],route_list)
+                    #print(pivot_list, i)
+                    #print("if:",i,savings[i],route_list)
 
-                print("---------")
+                #print("---------")
 
         self.spread_missing_nodes(route_list)
 
