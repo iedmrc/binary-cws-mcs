@@ -20,7 +20,7 @@ def prng(j, g = LEHMER_0, z = None):
             {"a":152717, "z":135623, "m":210321}, #Lehmer CG
             {"a":197331, "z":172361, "m":254129}, #Lehmer CG
             {"a":48271, "z":172361, "m":2**31-1}, #Lehmer CG
-            {"a":1071064 , "z":[135623,172361], "m":2**31-19}, #MRG
+            {"a":1071064, "z":[135623,172361], "m":2**31-19}, #MRG
             {"a":6364136223846793005, "z":172361, "m":2**64}, #Mixed CG
             {"a":197331, "z":172361, "m":2**31-1}, #ICG
             {"a":197331, "z":[172361, None], "m":2**48-59}] #EICG
@@ -28,29 +28,30 @@ def prng(j, g = LEHMER_0, z = None):
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
-            z = a*z%m
-            yield z, z%(j-n)
+            z = (a*z)%m
+            yield z
     elif g == 6: # MRG
+        #TODO: unify MRG like others
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
             z[0], z[1] = z[1], (a*z[1]+2113664*z[0])%m
-            yield z[1], z[1]%(j-n)
+            yield z
     elif g == 7: # Mixed CG
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
             z = (a*z+1)%m
-            yield z, z%(j-n)
+            yield z
     elif g == 8: #ICG
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
             z = (gmpy2.invert(z,m)+1)%m
-            yield z, z%(j-n)
+            yield z
     elif g == 9: #EICG
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
             z[-1] = gmpy2.invert(n+1+z[0],m)
-            yield z[-1], z[-1]%(j-n)
+            yield z[::-1]

@@ -146,9 +146,8 @@ class Solver:
     def spread_missing_nodes(self, route_list):
         all_nodes = set(self.problem.get_nodes())
         current_nodes = set(itertools.chain.from_iterable(route_list))
-
-        missing_nodes = all_nodes - current_nodes
-        missing_nodes.remove(0)
+        print(all_nodes,current_nodes)
+        missing_nodes = all_nodes - current_nodes - set([0])
 
         # If there are missing nodes
         if len(missing_nodes):
@@ -157,7 +156,9 @@ class Solver:
 
     def cost(self, route_list):
         cost = 0
+        print(self.M)
         for route in route_list:
+            print(route)
             cost += self.M[0][route[0]] + self.M[route[-1]][0]
             for i in range(len(route)-1):
                 cost += self.M[route[i]][route[i+1]]
@@ -174,13 +175,12 @@ class Solver:
         pivot_list = self.construct_pivot_list(savings)
         route_list = self.fork(route_list)
         #print("probability",probability)
-
         while len(pivot_list) > 0:
             pivot_list_helper = self.fork(pivot_list)
 
             for i in pivot_list_helper:
-                rnd = next(prng(1, self.prng_type, rnd))[0]
-
+                rnd = next(prng(1, self.prng_type, rnd))
+                #print(i,rnd,probability,savings[i],route_list)
                 if rnd % 100 < probability:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
@@ -206,9 +206,8 @@ class Solver:
 
                 t1, t2 = [], []
                 for _ in range(n):
-                    rnd = next(prng(1, self.prng_type, rnd))[0]
+                    rnd = next(prng(1, self.prng_type, rnd))
                     probability = (rnd % 36) + 5
-
                     t1_step = self.binary_cws(
                         route_list=route_list, savings=savings[i:], rnd=rnd, probability=probability)
                     t1.append(t1_step[0])
