@@ -1,13 +1,14 @@
 import os
 import itertools
 import copy
-
+import time
 
 import tsplib95
 import networkx as nx
 import numpy as np
 
 from prng import prng, LEHMER_0
+
 
 class Solver:
     def __init__(self, problem_path, prng_type=LEHMER_0):
@@ -21,7 +22,10 @@ class Solver:
         self.M = np.array(nx.to_numpy_matrix(self.G))
 
         # Depot index
-        self.DI = self.problem.depots[0] - 1
+        if len(self.problem.depots) > 1:
+            raise Exception("This solver can only work with one depot problems. Please make sure that the problem only has one depot.")
+        
+        self.DI = self.problem.depots[0] - 1        
 
         # Capacity constraint of vehicles
         self.CAPACITY = self.problem.capacity
@@ -144,10 +148,11 @@ class Solver:
                 route_list[location_j[0]].append(s[0].tolist())
 
     def spread_missing_nodes(self, route_list):
-        all_nodes = set(self.problem.get_nodes())
+        all_nodes = set(range(len(self.M)))
         current_nodes = set(itertools.chain.from_iterable(route_list))
-        print(all_nodes,current_nodes)
-        missing_nodes = all_nodes - current_nodes - set([0])
+        depot_node = set([self.DI])
+        # print(all_nodes, current_nodes, depot_node)
+        missing_nodes = all_nodes - current_nodes - depot_node
 
         # If there are missing nodes
         if len(missing_nodes):
@@ -156,10 +161,10 @@ class Solver:
 
     def cost(self, route_list):
         cost = 0
-        print(self.M)
         for route in route_list:
-            print(route)
-            cost += self.M[0][route[0]] + self.M[route[-1]][0]
+            # Calculate travelling from/to depot cost
+            cost += self.M[self.DI][route[0]] + self.M[route[-1]][self.DI]
+            # Calculate each vehicle's travel cost
             for i in range(len(route)-1):
                 cost += self.M[route[i]][route[i+1]]
         return cost
@@ -189,15 +194,14 @@ class Solver:
 
         return self.cost(route_list), route_list
 
-
     def binary_cws_mcs(self, n=1000):
         route_list = []
         savings = self.fork(self.S)
 
         pivot_list = self.construct_pivot_list(savings)
         rnd = None
-        import time
-        now = time.time()
+
+        beggining = time.time()
         while len(pivot_list) > 0:
 
             pivot_list_helper = self.fork(pivot_list)
@@ -215,7 +219,7 @@ class Solver:
                     t2_step = self.binary_cws(
                         route_list=route_list, savings=savings[i+1:], rnd=rnd, probability=probability)
                     t2.append(t2_step[0])
-    
+
                 #print(pivot_list, i)
 
                 #print(sum(t2)/n, sum(t1)/n )
@@ -226,5 +230,5 @@ class Solver:
                     #print("if:",i,savings[i],route_list)
 
         self.spread_missing_nodes(route_list)
-        print(time.time()-now)
+        print("time spent: ", time.time()-beggining)
         return self.cost(route_list), route_list
