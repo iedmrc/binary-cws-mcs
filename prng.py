@@ -23,7 +23,7 @@ def prng(j, g = LEHMER_0, z = None):
             {"a":1071064, "z":[135623,172361], "m":2**31-19}, #MRG
             {"a":6364136223846793005, "z":172361, "m":2**64}, #Mixed CG
             {"a":197331, "z":172361, "m":2**31-1}, #ICG
-            {"a":197331, "z":[172361, None], "m":2**48-59}] #EICG
+            {"a":172361, "z":[None,0], "m":2**48-59}] #EICG
     if g in [0,1,2,3,4,5]:
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
@@ -47,11 +47,11 @@ def prng(j, g = LEHMER_0, z = None):
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
-            z = (gmpy2.invert(z,m)+1)%m
+            z = gmpy2.invert(z,m)+1
             yield z
     elif g == 9: #EICG
         z = z if z != None else rnd[g]["z"]
         a, m = rnd[g]["a"], rnd[g]["m"]
         for n in range(j):
-            z[-1] = gmpy2.invert(n+1+z[0],m)
-            yield z[::-1]
+            z[0],z[1] = gmpy2.invert(z[1]+a,m),z[1]+1
+            yield z

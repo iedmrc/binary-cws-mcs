@@ -177,6 +177,7 @@ class Solver:
 
     def binary_cws(self, route_list=[], savings=np.array([]), rnd=None, probability=40):
         savings = savings if len(savings) else self.S
+        #print(savings)
         pivot_list = self.construct_pivot_list(savings)
         route_list = self.fork(route_list)
         #print("probability",probability)
@@ -186,7 +187,7 @@ class Solver:
             for i in pivot_list_helper:
                 rnd = next(prng(1, self.prng_type, rnd))
                 #print(i,rnd,probability,savings[i],route_list)
-                if rnd % 100 < probability:
+                if rnd[0] % 100 >= probability:
                     self.process(savings[i], route_list)
                     pivot_list.remove(i)
 
@@ -211,7 +212,7 @@ class Solver:
                 t1, t2 = [], []
                 for _ in range(n):
                     rnd = next(prng(1, self.prng_type, rnd))
-                    probability = (rnd % 36) + 5
+                    probability = (rnd[0] % 21) + 5
                     t1_step = self.binary_cws(
                         route_list=route_list, savings=savings[i:], rnd=rnd, probability=probability)
                     t1.append(t1_step[0])
@@ -230,5 +231,5 @@ class Solver:
                     #print("if:",i,savings[i],route_list)
 
         self.spread_missing_nodes(route_list)
-        print("time spent: ", time.time()-beggining)
+        print("time spent: ",time.time()-beggining)
         return self.cost(route_list), route_list
