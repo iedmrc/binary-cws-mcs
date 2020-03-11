@@ -10,6 +10,7 @@ import tsplib95
 import networkx as nx
 import numpy as np
 import ray
+from tqdm import tqdm
 
 from prng import prng, LEHMER_0
 
@@ -516,8 +517,8 @@ class Solver:
 
         route_list = []
         savings = self.S
-
         pivot_list = self._construct_pivot_list(savings)
+        pbar = tqdm(total=len(pivot_list), desc="Binary CWS-MCS")
 
         while len(pivot_list) > 0:
             for i in self._fork(pivot_list):
@@ -529,7 +530,10 @@ class Solver:
                 if t2 >= t1:
                     self._process(savings[i], route_list)
                     pivot_list.remove(i)
+                    pbar.update(1)
 
         self._spread_missing_nodes(route_list)
+        cost = self._cost(route_list)
+        pbar.close()
 
-        return self._cost(route_list), route_list
+        return cost, route_list

@@ -11,6 +11,6 @@ def main():
     solver = Solver(problem_path)
 
     cost, route = solver.binary_cws_mcs(n=50, distributed=True)
-    print(cost,route)
+    print("cost: ", cost, "\n routes: " ,route)
 
 main()

@@ -2,3 +2,4 @@ tsplib95
 networkx
 numpy
 ray
+tqdm
