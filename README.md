@@ -10,8 +10,8 @@ Constrained Vehicle Routing Problem</h1>
   </a>
 </p>
 
-> An implementation of the "Comparison of Randomized Solutions for
-Constrained Vehicle Routing Problem" paper.
+> An implementation of the "[Comparison of Randomized Solutions for
+Constrained Vehicle Routing Problem](https://arxiv.org/abs/2005.05871)" paper.
 
 ## Install
 To install, just clone the repository and install the dependencies via:
